@@ -1,0 +1,14 @@
+{
+  "private": true,
+  "name": "@this-project/test",
+  "scripts": {
+    "start": "npm install && tsx src"
+  },
+  "devDependencies": {
+    "tsx": "^4.20.3",
+    "typescript": "^5.8.3"
+  },
+  "dependencies": {
+    "gql-typed": "file:../dist"
+  }
+}
