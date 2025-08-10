@@ -3,7 +3,6 @@ import {
   GraphQLBoolean,
   GraphQLEnumType,
   GraphQLFieldConfig,
-  GraphQLFieldResolver,
   GraphQLFloat,
   GraphQLID,
   GraphQLInputFieldConfig,
@@ -21,7 +20,6 @@ import {
   GraphQLString,
   GraphQLType,
   GraphQLUnionType,
-  printSchema,
   ValueNode,
 } from "graphql";
 
