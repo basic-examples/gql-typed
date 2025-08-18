@@ -56,24 +56,7 @@ export type TypeDescriptor<T> = (unknown extends T
     : string;
 };
 
-type ResolverInputValidationError<
-  T,
-  Result,
-  Args extends Partial<Record<string, unknown>>
-> = T extends object ? never : "[Error] object expected" & { got: T };
-
-export type ResolverInput<
-  Config extends ConfigBase,
-  T,
-  Result,
-  Args extends Partial<Record<string, unknown>>
-> = ResolverInputValidationError<T, Result, Args> extends infer I extends string
-  ? [I] extends [never]
-    ? ResolverInputInternal<Config, T, Result, Args>
-    : I
-  : never;
-
-interface ResolverInputInternal<
+interface ResolverInput<
   Config extends ConfigBase,
   T,
   Result,
@@ -98,14 +81,11 @@ export interface ResolverInputField<T> {
   deprecationReason?: string | null;
 }
 
-export type AnyResolverInput<
-  Config extends ConfigBase,
-  T
-> = ResolverInputInternal<
+export type AnyResolverInput<Config extends ConfigBase, T> = ResolverInput<
   Config,
   T,
   unknown,
-  any // this is unavoidable because of its variance inside the graphql package
+  any // this is unavoidable because of variance inside the graphql package
 >;
 
 export interface ResolverOutput<
@@ -113,7 +93,7 @@ export interface ResolverOutput<
   T,
   Result,
   Args extends Partial<Record<string, unknown>>,
-  Input extends ResolverInputInternal<Config, T, Result, Args>
+  Input extends ResolverInput<Config, T, Result, Args>
 > {
   internal: (
     incomplete: IncompleteSchema<Config, TypeMapBase<Config>>
@@ -126,7 +106,7 @@ interface ResolverOutputInternal<
   T,
   Result,
   Args extends Partial<Record<string, unknown>>,
-  Input extends ResolverInputInternal<Config, T, Result, Args>
+  Input extends ResolverInput<Config, T, Result, Args>
 > {
   config: Config;
   type: T;
@@ -139,7 +119,7 @@ export type AnyResolverOutput<Config extends ConfigBase, T> = ResolverOutput<
   Config,
   T,
   unknown,
-  any, // this is unavoidable because of its variance inside the graphql package
+  any, // this is unavoidable because of variance inside the graphql package
   AnyResolverInput<Config, T>
 >;
 
@@ -150,9 +130,7 @@ export function resolver<
   const Input extends ResolverInput<Config, T, Result, Args>
 >(
   input: Input
-) => Input extends ResolverInputInternal<Config, T, Result, Args>
-  ? ResolverOutput<Config, T, Result, Args, Input>
-  : never {
+) => ResolverOutput<Config, T, Result, Args, Input> {
   return resolverInternal1;
 }
 
@@ -163,10 +141,7 @@ function resolverInternal1<
   Args extends Partial<Record<string, unknown>>
 >(): <const Input extends ResolverInput<Config, T, Result, Args>>(
   input: Input
-) => Input extends ResolverInputInternal<Config, T, Result, Args>
-  ? ResolverOutput<Config, T, Result, Args, Input>
-  : never;
-function resolverInternal1(): unknown {
+) => ResolverOutput<Config, T, Result, Args, Input> {
   return resolverInternal2;
 }
 
@@ -175,16 +150,10 @@ function resolverInternal2<
   T,
   Result,
   Args extends Partial<Record<string, unknown>>,
-  Input extends ResolverInputInternal<Config, T, Result, Args>
+  Input extends ResolverInput<Config, T, Result, Args>
 >(input: Input): ResolverOutput<Config, T, Result, Args, Input> {
   const result: Omit<
-    ResolverOutput<
-      Config,
-      T,
-      Result,
-      Args,
-      ResolverInputInternal<Config, T, Result, Args>
-    >,
+    ResolverOutput<Config, T, Result, Args, Input>,
     " onlyOnTypes"
   > = {
     internal: (incomplete) => resolverImpl(incomplete, input),
@@ -199,7 +168,7 @@ function resolverImpl<
   Args extends Partial<Record<string, unknown>>
 >(
   incomplete: IncompleteSchema<Config, TypeMapBase<Config>>,
-  input: ResolverInputInternal<Config, T, Result, Args>
+  input: ResolverInput<Config, T, Result, Args>
 ): GraphQLFieldConfig<T, Config["context"], Args> {
   return {
     type: incomplete.getType(input.type) as GraphQLOutputType,
@@ -226,26 +195,13 @@ function resolverImpl<
   };
 }
 
-type ObjectTypeInputValidationError<T> = T extends object
-  ? never
-  : "[Error] object expected" & { got: T };
-
 export interface ObjectTypeInputField<T> {
   description?: string;
   type: TypeDescriptor<T>;
   deprecationReason?: string;
 }
 
-export type ObjectTypeInput<
-  Config extends ConfigBase,
-  T
-> = ObjectTypeInputValidationError<T> extends infer I extends string
-  ? [I] extends [never]
-    ? ObjectTypeInputInternal<Config, T>
-    : I
-  : never;
-
-interface ObjectTypeInputInternal<Config extends ConfigBase, T> {
+interface ObjectTypeInput<Config extends ConfigBase, T> {
   name: string;
   description?: string;
   implementsInterfaces?: string[];
@@ -258,7 +214,7 @@ interface ObjectTypeInputInternal<Config extends ConfigBase, T> {
 export interface ObjectTypeOutput<
   Config extends ConfigBase,
   T,
-  Input extends ObjectTypeInputInternal<Config, T>
+  Input extends ObjectTypeInput<Config, T>
 > {
   kind: "object";
   name: Input["name"];
@@ -271,7 +227,7 @@ export interface ObjectTypeOutput<
 interface ObjectTypeOutputInternal<
   Config extends ConfigBase,
   T,
-  Input extends ObjectTypeInputInternal<Config, T>
+  Input extends ObjectTypeInput<Config, T>
 > {
   config: Config;
   type: T;
@@ -281,23 +237,20 @@ interface ObjectTypeOutputInternal<
 export type AnyObjectTypeOutput<
   Config extends ConfigBase,
   T
-> = ObjectTypeOutput<Config, T, ObjectTypeInputInternal<Config, T>>;
+> = ObjectTypeOutput<Config, T, ObjectTypeInput<Config, T>>;
 
 export function objectType<Config extends ConfigBase, T>(): <
   const Input extends ObjectTypeInput<Config, T>
 >(
   input: Input
-) => Input extends ObjectTypeInputInternal<Config, T>
-  ? ObjectTypeOutput<Config, T, Input>
-  : never;
-export function objectType(): unknown {
+) => ObjectTypeOutput<Config, T, Input> {
   return objectTypeInternal;
 }
 
 function objectTypeInternal<
   Config extends ConfigBase,
   T,
-  Input extends ObjectTypeInputInternal<Config, T>
+  Input extends ObjectTypeInput<Config, T>
 >(input: Input): ObjectTypeOutput<Config, T, Input> {
   const result: Omit<ObjectTypeOutput<Config, T, Input>, " onlyOnTypes"> = {
     kind: "object",
@@ -311,7 +264,7 @@ function objectTypeInternal<
 function objectTypeImpl<
   Config extends ConfigBase,
   T,
-  Input extends ObjectTypeInputInternal<Config, T>
+  Input extends ObjectTypeInput<Config, T>
 >(
   incomplete: IncompleteSchema<Config, TypeMapBase<Config>>,
   input: Input
@@ -369,24 +322,13 @@ function objectTypeImpl<
   });
 }
 
-type InterfaceTypeInputValidationError<T> = T extends object
-  ? never
-  : "[Error] object expected" & { got: T };
-
 interface InterfaceTypeInputField<T> {
   description?: string;
   type: TypeDescriptor<T>;
   deprecationReason?: string;
 }
 
-export type InterfaceTypeInput<T> =
-  InterfaceTypeInputValidationError<T> extends infer I extends string
-    ? [I] extends [never]
-      ? InterfaceTypeInputInternal<T>
-      : I
-    : never;
-
-interface InterfaceTypeInputInternal<T> {
+interface InterfaceTypeInput<T> {
   name: string;
   description?: string;
   implementsInterfaces?: string[];
@@ -398,7 +340,7 @@ interface InterfaceTypeInputInternal<T> {
 export interface InterfaceTypeOutput<
   Config extends ConfigBase,
   T,
-  Input extends InterfaceTypeInputInternal<T>
+  Input extends InterfaceTypeInput<T>
 > {
   kind: "interface";
   name: Input["name"];
@@ -408,10 +350,7 @@ export interface InterfaceTypeOutput<
   " onlyOnTypes": InterfaceTypeOutputInternal<T, Input>;
 }
 
-interface InterfaceTypeOutputInternal<
-  T,
-  Input extends InterfaceTypeInputInternal<T>
-> {
+interface InterfaceTypeOutputInternal<T, Input extends InterfaceTypeInput<T>> {
   type: T;
   input: Input;
 }
@@ -419,23 +358,20 @@ interface InterfaceTypeOutputInternal<
 export type AnyInterfaceTypeOutput<
   Config extends ConfigBase,
   T
-> = InterfaceTypeOutput<Config, T, InterfaceTypeInputInternal<T>>;
+> = InterfaceTypeOutput<Config, T, InterfaceTypeInput<T>>;
 
 export function interfaceType<Config extends ConfigBase, T>(): <
   const Input extends InterfaceTypeInput<T>
 >(
   input: Input
-) => Input extends InterfaceTypeInputInternal<T>
-  ? InterfaceTypeOutput<Config, T, Input>
-  : never;
-export function interfaceType(): unknown {
+) => InterfaceTypeOutput<Config, T, Input> {
   return interfaceTypeInternal;
 }
 
 function interfaceTypeInternal<
   Config extends ConfigBase,
   T,
-  Input extends InterfaceTypeInputInternal<T>
+  Input extends InterfaceTypeInput<T>
 >(input: Input): InterfaceTypeOutput<Config, T, Input> {
   const result: Omit<InterfaceTypeOutput<Config, T, Input>, " onlyOnTypes"> = {
     kind: "interface",
@@ -448,7 +384,7 @@ function interfaceTypeInternal<
 function interfaceTypeImpl<
   Config extends ConfigBase,
   T,
-  Input extends InterfaceTypeInputInternal<T>
+  Input extends InterfaceTypeInput<T>
 >(
   incomplete: IncompleteSchema<Config, TypeMapBase<Config>>,
   input: Input
@@ -538,18 +474,7 @@ function scalarTypeInternal<T, Input extends ScalarTypeInput<T>>(
   return result as ScalarTypeOutput<T, Input>;
 }
 
-type EnumTypeInputValidationError<T extends string> = string extends T
-  ? "[Error] string literal type expected" & { got: T }
-  : never;
-
-export type EnumTypeInput<T extends string> =
-  EnumTypeInputValidationError<T> extends infer I extends string
-    ? [I] extends [never]
-      ? EnumTypeInputInternal<T>
-      : I
-    : never;
-
-interface EnumTypeInputInternal<T extends string> {
+interface EnumTypeInput<T extends string> {
   name: string;
   description?: string;
   values: Record<T, EnumValue>;
@@ -562,7 +487,7 @@ export interface EnumValue {
 
 export interface EnumTypeOutput<
   T extends string,
-  Input extends EnumTypeInputInternal<T>
+  Input extends EnumTypeInput<T>
 > {
   kind: "enum";
   name: Input["name"];
@@ -572,7 +497,7 @@ export interface EnumTypeOutput<
 
 interface EnumTypeOutputInternal<
   T extends string,
-  Input extends EnumTypeInputInternal<T>
+  Input extends EnumTypeInput<T>
 > {
   type: T;
   input: Input;
@@ -580,22 +505,20 @@ interface EnumTypeOutputInternal<
 
 export type AnyEnumTypeOutput<T extends string> = EnumTypeOutput<
   T,
-  EnumTypeInputInternal<T>
+  EnumTypeInput<T>
 >;
 
 export function enumType<T extends string>(): <
   const Input extends EnumTypeInput<T>
 >(
   input: Input
-) => Input extends EnumTypeInputInternal<T> ? EnumTypeOutput<T, Input> : never;
-export function enumType(): unknown {
+) => EnumTypeOutput<T, Input> {
   return enumTypeInternal;
 }
 
-function enumTypeInternal<
-  T extends string,
-  Input extends EnumTypeInputInternal<T>
->(input: Input): EnumTypeOutput<T, Input> {
+function enumTypeInternal<T extends string, Input extends EnumTypeInput<T>>(
+  input: Input
+): EnumTypeOutput<T, Input> {
   const result: Omit<EnumTypeOutput<T, Input>, " onlyOnTypes"> = {
     kind: "enum",
     name: input.name,
@@ -604,17 +527,6 @@ function enumTypeInternal<
   return result as EnumTypeOutput<T, Input>;
 }
 
-type InputTypeInputValidationError<T> = T extends object
-  ? never
-  : "[Error] object expected" & { got: T };
-
-export type InputTypeInput<T> =
-  InputTypeInputValidationError<T> extends infer I extends string
-    ? [I] extends [never]
-      ? InputTypeInputInternal<T>
-      : I
-    : never;
-
 export interface InputTypeInputField<T> {
   description?: string;
   type: TypeDescriptor<T>;
@@ -622,7 +534,7 @@ export interface InputTypeInputField<T> {
   defaultValue?: T;
 }
 
-interface InputTypeInputInternal<T> {
+interface InputTypeInput<T> {
   name: string;
   description?: string;
   fields: {
@@ -633,7 +545,7 @@ interface InputTypeInputInternal<T> {
 export interface InputTypeOutput<
   Config extends ConfigBase,
   T,
-  Input extends InputTypeInputInternal<T>
+  Input extends InputTypeInput<T>
 > {
   kind: "input";
   name: Input["name"];
@@ -643,7 +555,7 @@ export interface InputTypeOutput<
   " onlyOnTypes": InputTypeOutputInternal<T, Input>;
 }
 
-interface InputTypeOutputInternal<T, Input extends InputTypeInputInternal<T>> {
+interface InputTypeOutputInternal<T, Input extends InputTypeInput<T>> {
   type: T;
   input: Input;
 }
@@ -651,24 +563,21 @@ interface InputTypeOutputInternal<T, Input extends InputTypeInputInternal<T>> {
 export type AnyInputTypeOutput<Config extends ConfigBase, T> = InputTypeOutput<
   Config,
   T,
-  InputTypeInputInternal<T>
+  InputTypeInput<T>
 >;
 
 export function inputType<Config extends ConfigBase, T>(): <
   const Input extends InputTypeInput<T>
 >(
   input: Input
-) => Input extends InputTypeInputInternal<T>
-  ? InputTypeOutput<Config, T, Input>
-  : never;
-export function inputType(): unknown {
+) => InputTypeOutput<Config, T, Input> {
   return inputTypeInternal;
 }
 
 function inputTypeInternal<
   Config extends ConfigBase,
   T,
-  Input extends InputTypeInputInternal<T>
+  Input extends InputTypeInput<T>
 >(input: Input): InputTypeOutput<Config, T, Input> {
   const result: Omit<InputTypeOutput<Config, T, Input>, " onlyOnTypes"> = {
     kind: "input",
@@ -680,7 +589,7 @@ function inputTypeInternal<
 
 function inputTypeImpl<Config extends ConfigBase>(
   incomplete: IncompleteSchema<Config, TypeMapBase<Config>>,
-  { name, description, fields }: InputTypeInputInternal<unknown>
+  { name, description, fields }: InputTypeInput<unknown>
 ): GraphQLInputObjectType {
   let lazilyResolvedFields: Record<string, GraphQLInputFieldConfig> | undefined;
   return new GraphQLInputObjectType({
@@ -707,18 +616,7 @@ function inputTypeImpl<Config extends ConfigBase>(
   });
 }
 
-type UnionTypeInputValidationError<T, Backup = T> = T extends object
-  ? never
-  : "[Error] object expected" & { got: T };
-
-export type UnionTypeInput<T> =
-  UnionTypeInputValidationError<T> extends infer I extends string
-    ? [I] extends [never]
-      ? UnionTypeInputInternal
-      : I
-    : never;
-
-interface UnionTypeInputInternal {
+interface UnionTypeInput {
   name: string;
   description?: string;
   types: string[];
@@ -727,7 +625,7 @@ interface UnionTypeInputInternal {
 export interface UnionTypeOutput<
   Config extends ConfigBase,
   T,
-  Input extends UnionTypeInputInternal
+  Input extends UnionTypeInput
 > {
   kind: "union";
   name: Input["name"];
@@ -737,7 +635,7 @@ export interface UnionTypeOutput<
   " onlyOnTypes": UnionTypeOutputInternal<T, Input>;
 }
 
-interface UnionTypeOutputInternal<T, Input extends UnionTypeInputInternal> {
+interface UnionTypeOutputInternal<T, Input extends UnionTypeInput> {
   type: T;
   input: Input;
 }
@@ -745,24 +643,21 @@ interface UnionTypeOutputInternal<T, Input extends UnionTypeInputInternal> {
 export type AnyUnionTypeOutput<Config extends ConfigBase, T> = UnionTypeOutput<
   Config,
   unknown,
-  UnionTypeInputInternal
+  UnionTypeInput
 >;
 
 export function unionType<Config extends ConfigBase, T>(): <
-  const Input extends UnionTypeInput<T>
+  const Input extends UnionTypeInput // TODO: add type for T
 >(
   input: Input
-) => Input extends UnionTypeInputInternal
-  ? UnionTypeOutput<Config, T, Input>
-  : never;
-export function unionType(): unknown {
+) => UnionTypeOutput<Config, T, Input> {
   return unionTypeInternal;
 }
 
 function unionTypeInternal<
   Config extends ConfigBase,
   T,
-  Input extends UnionTypeInputInternal
+  Input extends UnionTypeInput
 >(input: Input): UnionTypeOutput<Config, T, Input> {
   const result: Omit<UnionTypeOutput<Config, T, Input>, " onlyOnTypes"> = {
     kind: "union",
@@ -772,10 +667,7 @@ function unionTypeInternal<
   return result as UnionTypeOutput<Config, T, Input>;
 }
 
-function unionTypeImpl<
-  Config extends ConfigBase,
-  Input extends UnionTypeInputInternal
->(
+function unionTypeImpl<Config extends ConfigBase, Input extends UnionTypeInput>(
   incomplete: IncompleteSchema<Config, TypeMapBase<Config>>,
   input: Input
 ): GraphQLUnionType {
